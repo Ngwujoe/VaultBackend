@@ -173,7 +173,7 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
 
     // Reset link
-    const resetLink = `http://localhost:5173/reset-password/${token}`;
+    const resetLink = `https://voltabancadital1a.vercel.app/reset-password/${token}`;
 
     // Send email
     const mailOptions = {
