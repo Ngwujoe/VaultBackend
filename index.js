@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import User from "./Models/User.js";
 import transactionRoutes from "./Routes/TransactionRoutes.js";
 import loanRoutes from "./Routes/LoanRoutes.js";
@@ -37,14 +38,30 @@ mongoose
 // Nodemailer Setup
 // -------------------------
 
-// Helper: Send Welcome Email
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Create reusable transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // true for 465, false for 587
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+/**
+ * Send a Welcome Email via NodeMailer
+ * @param {string} to - Recipient email
+ * @param {string} name - Full name of user
+ * @param {string} accountNumber - User's account number
+ */
 const sendWelcomeEmail = async (to, name, accountNumber) => {
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM, // e.g., "Vault Bank <no-reply@yourdomain.com>"
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM, // e.g., "Vault Bank <no-reply@voltabancaditalia.com>"
       to,
-      subject: "Welcome to volta Banca d’italia! 💳",
+      subject: "Welcome to Volta Banca d’Italia! 💳",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>Welcome, ${name}!</h2>
@@ -63,9 +80,6 @@ const sendWelcomeEmail = async (to, name, accountNumber) => {
     console.error("❌ Error sending welcome email:", err.message);
   }
 };
-
-
-  
 
 
 // -------------------------
@@ -162,6 +176,9 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
+
+
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -203,58 +220,66 @@ router.post("/forgot-password", async (req, res) => {
 
 
 // -------- RESET PASSWORD --------
+// Password Reset Route
+// -------------------------
 router.post("/reset-password/:token", async (req, res) => {
   try {
     const { token } = req.params;
     const { newPassword } = req.body;
 
+    // Find user by valid reset token
     const user = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }, // still valid
+      resetPasswordExpires: { $gt: Date.now() }, // token still valid
     });
 
-    if (!user)
+    if (!user) {
       return res.status(400).json({ message: "Invalid or expired reset link" });
+    }
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
 
-    // Clear reset token fields
+    // Clear token fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
 
-    // Send email with new password via Resend
+    // -------------------------
+    // Send confirmation email via NodeMailer
+    // -------------------------
     try {
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM,
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM, // e.g., "Vault Bank <no-reply@voltabancaditalia.com>"
         to: user.email,
         subject: "Your Password Has Been Reset ✅",
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px;">
             <h3>Hello ${user.firstName},</h3>
             <p>Your password has been successfully updated.</p>
-            <p>Please keep it safe and do not share it with anyone.</p>
+            <p>If you did not perform this action, please contact support immediately.</p>
+            <br/>
+            <p style="color: #555;">- The Vault Team</p>
           </div>
         `,
       });
-      console.log(`📧 Email sent to ${user.email} with new password`);
-    } catch (err) {
-      console.error("❌ Failed to send reset email via Resend:", err.message);
+
+      console.log(`📧 Password reset confirmation email sent to ${user.email}`);
+    } catch (emailErr) {
+      console.error("❌ Failed to send reset confirmation email:", emailErr.message);
     }
 
+    // Send API response
     res.json({
-      message: "Password has been reset successfully. An email has been sent with your new password.",
+      message: "Password has been reset successfully. A confirmation email has been sent.",
     });
   } catch (err) {
     console.error("❌ Reset Password Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
-
 
 // -------- GET PROFILE --------
 router.get("/profile", protect, async (req, res) => {
