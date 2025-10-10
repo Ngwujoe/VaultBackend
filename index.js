@@ -5,7 +5,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import User from "./Models/User.js";
 import transactionRoutes from "./Routes/TransactionRoutes.js";
 import loanRoutes from "./Routes/LoanRoutes.js";
@@ -36,21 +36,15 @@ mongoose
 // -------------------------
 // Nodemailer Setup
 // -------------------------
-const transporter = nodemailer.createTransport({
-  service: "gmail", // or use: host, port, secure, auth
-  auth: {
-    user: process.env.EMAIL_USER, // your Gmail address
-    pass: process.env.EMAIL_PASS, // app password (not Gmail password)
-  },
-});
 
 // Helper: Send Welcome Email
+const resend = new Resend(process.env.RESEND_API_KEY);
 const sendWelcomeEmail = async (to, name, accountNumber) => {
   try {
-    const mailOptions = {
-      from: `"Vault Bank" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM, // e.g., "Vault Bank <no-reply@yourdomain.com>"
       to,
-      subject: "Welcome to volta Banca d’italia!",
+      subject: "Welcome to volta Banca d’italia! 💳",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>Welcome, ${name}!</h2>
@@ -62,19 +56,25 @@ const sendWelcomeEmail = async (to, name, accountNumber) => {
           <p style="color: #555;">- The Vault Team</p>
         </div>
       `,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     console.log(`📧 Welcome email sent to ${to}`);
   } catch (err) {
     console.error("❌ Error sending welcome email:", err.message);
   }
 };
 
+
+  
+
+
 // -------------------------
 // User Routes
 // -------------------------
 const router = express.Router();
+
+
+
 
 // -------- REGISTER --------
 router.post("/register", async (req, res) => {
@@ -100,7 +100,7 @@ router.post("/register", async (req, res) => {
 
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    // Send welcome email
+    // Send welcome email via Resend
     await sendWelcomeEmail(newUser.email, `${newUser.firstName} ${newUser.lastName}`, newUser.accountNumber);
 
     res.status(201).json({
@@ -121,6 +121,10 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+
+
+
 
 // -------- LOGIN --------
 router.post("/login", async (req, res) => {
@@ -158,26 +162,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// -------- FORGOT PASSWORD --------
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: "No account found with that email" });
+    if (!user) return res.status(404).json({ message: "No account found with that email" });
 
-    // Generate reset token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
     await user.save();
 
-    // Reset link
     const resetLink = `https://voltabancaditalia.vercel.app/reset-password/${token}`;
 
-    // Send email
-    const mailOptions = {
-      from: `"volta Banca d’italia" <${process.env.EMAIL_USER}>`,
+    // Send email via Resend
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM,
       to: user.email,
       subject: "Password Reset Request",
       html: `
@@ -189,9 +189,7 @@ router.post("/forgot-password", async (req, res) => {
           <p>If you didn’t request this, please ignore this message.</p>
         </div>
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     res.json({ message: "Password reset link sent to your email" });
   } catch (err) {
@@ -199,6 +197,10 @@ router.post("/forgot-password", async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+
+
+
 
 // -------- RESET PASSWORD --------
 router.post("/reset-password/:token", async (req, res) => {
@@ -224,26 +226,23 @@ router.post("/reset-password/:token", async (req, res) => {
 
     await user.save();
 
-    // Send email with new password
-    const mailOptions = {
-      from: `"volta Banca d’italia" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: "Your Password Has Been Reset",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h3>Hello ${user.firstName},</h3>
-          <p>Your password has been successfully updated.</p>
-          <p><strong>New Password:</strong> ${newPassword}</p>
-          <p>Please keep it safe and do not share it with anyone.</p>
-        </div>
-      `,
-    };
-
+    // Send email with new password via Resend
     try {
-      await transporter.sendMail(mailOptions);
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Your Password Has Been Reset ✅",
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h3>Hello ${user.firstName},</h3>
+            <p>Your password has been successfully updated.</p>
+            <p>Please keep it safe and do not share it with anyone.</p>
+          </div>
+        `,
+      });
       console.log(`📧 Email sent to ${user.email} with new password`);
     } catch (err) {
-      console.error("❌ Failed to send reset email:", err.message);
+      console.error("❌ Failed to send reset email via Resend:", err.message);
     }
 
     res.json({

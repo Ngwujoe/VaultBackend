@@ -1,35 +1,26 @@
 // Utils/Email.js
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import dotenv from "dotenv";
 
 dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER, // stored in .env
-    pass: process.env.EMAIL_PASS, // stored in .env
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
- * Send an email
+ * Send an email via Resend
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
- * @param {string} text - Plain text message body
+ * @param {string} html - HTML message body
  */
-export const sendEmail = async (to, subject, text) => {
+export const sendEmail = async (to, subject, html) => {
   try {
-    const mailOptions = {
-      from: `"Vault App" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM, // e.g., "Vault App <no-reply@yourdomain.com>"
       to,
       subject,
-      text,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent successfully:", info.response);
+      html,
+    });
+    console.log(`📧 Email sent successfully to ${to}`);
   } catch (error) {
-    console.error("❌ Error sending email:", error);
+    console.error("❌ Error sending email via Resend:", error);
   }
 };
