@@ -13,7 +13,28 @@ import { protect } from "./Middleware/AuthMiddleware.js";
 
 dotenv.config();
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  "https://voltabancaditalia.vercel.app/",
+  "http://localhost:5173", // local dev
+];
+app.use(cors(
+  {
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow non-browser requests
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.log("❌ CORS blocked request from:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }
+
+
+
+
+));
 app.use(express.json());
 
 // Helper: Log with timestamp
