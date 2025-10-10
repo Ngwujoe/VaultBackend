@@ -44,7 +44,7 @@ Email: ${newUser.email}
 
 Please keep your account number safe and secure.
 
-Thank you for joining Vault Bank!
+Thank you for joining VoltaBancad'italia!!
 - The VoltaBancad'italia Team 
 copyright @VoltaBancad'italia 2025`
 
