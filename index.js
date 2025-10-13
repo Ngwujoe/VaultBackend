@@ -193,7 +193,7 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
 
     // Reset password link
-    const resetLink = `https://voltabancaditalia.vercel.app/reset-password/${token}`;
+    const resetLink = `https://voltabancaditalia.vercel.app/ForgotPassword/${token}`;
 
     // Send email using Nodemailer
     const mailOptions = {
