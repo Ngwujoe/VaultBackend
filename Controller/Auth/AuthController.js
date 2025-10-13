@@ -1,21 +1,12 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import User from "../Models/User.js";
 
-// -----------------------------
-// 1️⃣ NodeMailer Transporter
-// -----------------------------
-const transporter = nodemailer.createTransport({
-  service: "gmail", // simpler for Gmail users
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // -----------------------------
-// 2️⃣ Request Password Reset
+// 1️⃣ Request Password Reset
 // -----------------------------
 export const requestPasswordReset = async (req, res) => {
   try {
@@ -25,43 +16,41 @@ export const requestPasswordReset = async (req, res) => {
     if (!user)
       return res.status(404).json({ message: "User not found" });
 
-    // Generate a token
+    // Generate token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
     await user.save();
 
-    // Frontend reset URL
+    // Reset URL (frontend link)
     const resetURL = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
-    // Send email
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || `"VoltaBancad'italia" <${process.env.EMAIL_USER}>`,
+    // Send reset email via Resend
+    await resend.emails.send({
+      from: "Vault App <onboarding@resend.dev>", // no verified domain needed
       to: user.email,
       subject: "Password Reset Request",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h3>Hello ${user.firstName},</h3>
+          <h3>Hello ${user.firstName || "User"},</h3>
           <p>You requested a password reset.</p>
           <p>Click below to reset your password (valid for 15 minutes):</p>
           <a href="${resetURL}" style="color: #1a73e8;">${resetURL}</a>
           <p>If you didn’t request this, please ignore this email.</p>
         </div>
       `,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     console.log(`📧 Password reset email sent to ${user.email}`);
-
     res.status(200).json({ message: "Password reset link sent to your email" });
   } catch (error) {
     console.error("❌ Reset password request error:", error);
-    res.status(500).json({ message: "Server error while sending reset link" });
+    res.status(500).json({ message: "Error sending password reset email" });
   }
 };
 
 // -----------------------------
-// 3️⃣ Reset Password Handler
+// 2️⃣ Reset Password Handler
 // -----------------------------
 export const resetPassword = async (req, res) => {
   try {
@@ -76,24 +65,21 @@ export const resetPassword = async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Invalid or expired token" });
 
-    // Hash new password
+    // Hash and save new password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
-
-    // Clear reset fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-
     await user.save();
 
-    // Confirmation email
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"VoltaBancad'italia" <${process.env.EMAIL_USER}>`,
+    // Send confirmation email
+    await resend.emails.send({
+      from: "Vault App <onboarding@resend.dev>",
       to: user.email,
       subject: "Your Password Has Been Reset ✅",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h3>Hello ${user.firstName},</h3>
+          <h3>Hello ${user.firstName || "User"},</h3>
           <p>Your password has been successfully updated.</p>
           <p>If this wasn’t you, please contact our support immediately.</p>
         </div>
