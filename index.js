@@ -5,7 +5,6 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import User from "./Models/User.js";
 import transactionRoutes from "./Routes/TransactionRoutes.js";
@@ -183,39 +182,46 @@ router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "No account found with that email" });
 
+    if (!user)
+      return res.status(404).json({ message: "No account found with that email" });
+
+    // Generate reset token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
     await user.save();
 
+    // Reset password link
     const resetLink = `https://voltabancaditalia.vercel.app/reset-password/${token}`;
 
-    // Send email via Resend
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
+    // Send email using Nodemailer
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Vault Bank" <${process.env.SMTP_USER}>`,
       to: user.email,
       subject: "Password Reset Request",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h3>Hello ${user.firstName},</h3>
           <p>You requested to reset your password. Click the link below to set a new one:</p>
-          <a href="${resetLink}" style="color: blue;">Reset Password</a>
+          <p><a href="${resetLink}" style="color: #007bff; text-decoration: none;">Reset Password</a></p>
           <p>This link will expire in 15 minutes.</p>
           <p>If you didn’t request this, please ignore this message.</p>
+          <br/>
+          <p>— The Vault Team</p>
         </div>
       `,
-    });
+    };
 
+    await transporter.sendMail(mailOptions);
+
+    console.log(`📧 Password reset email sent to ${user.email}`);
     res.json({ message: "Password reset link sent to your email" });
   } catch (err) {
     console.error("❌ Forgot Password Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
-
 
 
 
