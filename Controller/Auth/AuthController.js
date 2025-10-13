@@ -7,12 +7,10 @@ import User from "../Models/User.js";
 // 1️⃣ NodeMailer Transporter
 // -----------------------------
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com", // Default to Gmail
-  port: process.env.SMTP_PORT || 465,
-  secure: true, // true for 465, false for 587
+  service: "gmail", // simpler for Gmail users
   auth: {
-    user: process.env.EMAIL_USER, // Your email address
-    pass: process.env.EMAIL_PASS, // Your app password (NOT your real email password)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
