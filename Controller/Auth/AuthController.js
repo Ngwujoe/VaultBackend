@@ -27,7 +27,7 @@ export const requestPasswordReset = async (req, res) => {
 
     // Send reset email via Resend
     await resend.emails.send({
-      from: "Vault App <onboarding@resend.dev>", // no verified domain needed
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>", // no verified domain needed
       to: user.email,
       subject: "Password Reset Request",
       html: `
@@ -74,7 +74,7 @@ export const resetPassword = async (req, res) => {
 
     // Send confirmation email
     await resend.emails.send({
-      from: "Vault App <onboarding@resend.dev>",
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>",
       to: user.email,
       subject: "Your Password Has Been Reset ✅",
       html: `
