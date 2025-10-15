@@ -47,7 +47,7 @@ mongoose
 const sendWelcomeEmail = async (to, name, accountNumber) => {
   try {
     await resend.emails.send({
-      from: "Vault Bank <onboarding@resend.dev>", // you can change to verified domain later
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>", // you can change to verified domain later
       to,
       subject: "Welcome to Volta Banca d’Italia! 💳",
       html: `
@@ -72,7 +72,7 @@ const sendWelcomeEmail = async (to, name, accountNumber) => {
 const sendPasswordResetEmail = async (to, name, resetLink) => {
   try {
     await resend.emails.send({
-      from: "Vault Bank <onboarding@resend.dev>",
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>",
       to,
       subject: "Password Reset Request",
       html: `
@@ -97,7 +97,7 @@ const sendPasswordResetEmail = async (to, name, resetLink) => {
 const sendPasswordResetConfirmation = async (to, name) => {
   try {
     await resend.emails.send({
-      from: "Vault Bank <onboarding@resend.dev>",
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>",
       to,
       subject: "Your Password Has Been Reset ✅",
       html: `

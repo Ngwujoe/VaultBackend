@@ -19,7 +19,7 @@ export const sendEmail = async (to, subject, html) => {
     }
 
     const data = await resend.emails.send({
-      from: "Vault App <onboarding@resend.dev>", // no domain verification required
+      from: "VoltaBancaditalia <no-reply@voltabancaditalia.com>", // no domain verification required
       to,
       subject,
       html,
